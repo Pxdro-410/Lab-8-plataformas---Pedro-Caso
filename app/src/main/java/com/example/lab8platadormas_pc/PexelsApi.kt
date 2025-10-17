@@ -1,10 +1,10 @@
 // ----------------------------------------------------------------------------
 // Pedro Caso
 // 241286
-// Lab 6 plataformas
+// Lab 8 plataformas
 // ----------------------------------------------------------------------------
 
-package com.example.lab6platadormas_pc
+package com.example.lab8platadormas_pc
 
 import retrofit2.Call
 import retrofit2.http.GET

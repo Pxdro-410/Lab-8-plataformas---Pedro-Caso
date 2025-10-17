@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 import java.util.Properties
 
 plugins {
@@ -5,6 +7,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("kotlin-parcelize")
+    id("kotlin-kapt")
+
 }
 
 val localProps = Properties().apply {
@@ -14,13 +18,13 @@ val localProps = Properties().apply {
 val pexelsKey = (localProps.getProperty("PEXELS_API_KEY") ?: "").trim()
 
 android {
-    namespace = "com.example.lab6platadormas_pc"
+    namespace = "com.example.lab8platadormas_pc"
     compileSdk = 36
 
 
     defaultConfig {
-        applicationId = "com.example.lab6platadormas_pc"
-        minSdk = 34
+        applicationId = "com.example.lab8platadormas_pc"
+        minSdk = 30
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -45,6 +49,7 @@ android {
     }
     kotlinOptions {
         jvmTarget = "11"
+        freeCompilerArgs = listOf("-XXLanguage:+PropertyParamAnnotationDefaultTargetMode")
     }
     buildFeatures {
         compose = true
@@ -61,6 +66,9 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.room.common.jvm)
+    implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.compose.runtime)
 
 
     debugImplementation(libs.androidx.ui.tooling)
@@ -86,6 +94,13 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
+    // Room
+    val room_version = "2.7.0-beta01"
+
+    implementation("androidx.room:room-runtime:$room_version")
+    implementation("androidx.room:room-ktx:$room_version")
+    kapt("androidx.room:room-compiler:$room_version")
 
 
 }

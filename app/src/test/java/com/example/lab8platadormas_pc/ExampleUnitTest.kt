@@ -1,4 +1,4 @@
-package com.example.lab6platadormas_pc
+package com.example.lab8platadormas_pc
 
 import org.junit.Test
 

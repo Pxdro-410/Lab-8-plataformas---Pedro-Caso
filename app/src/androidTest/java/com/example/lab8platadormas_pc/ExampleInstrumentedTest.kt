@@ -1,4 +1,4 @@
-package com.example.lab6platadormas_pc
+package com.example.lab8platadormas_pc
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4

@@ -1,10 +1,10 @@
 // ----------------------------------------------------------------------------
 // Pedro Caso
 // 241286
-// Lab 6 plataformas
+// Lab 8 plataformas
 // ----------------------------------------------------------------------------
 
-package com.example.lab6platadormas_pc
+package com.example.lab8platadormas_pc
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -36,13 +36,17 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -63,8 +67,20 @@ fun PexelsScreen(
     var currentCall by remember { mutableStateOf<Call<PexelsResponse>?>(null) }
 
     val gridState = rememberLazyGridState()
+    val coroutineScope = rememberCoroutineScope()
 
-    // Cancelar cualquier request si el composable sale de composición
+    val context = LocalContext.current
+    val db by remember { mutableStateOf(AppModule.provideDatabase(context)) }
+    val photoDao = remember { db.photoDao() }
+    val queryDao = remember { db.recentQueryDao() }
+
+    var recentQueries by remember { mutableStateOf<List<RecentQueryEntity>>(emptyList()) }
+
+    // Cargar búsquedas recientes al inicio
+    LaunchedEffect(Unit) {
+        recentQueries = queryDao.getRecentQueries()
+    }
+
     DisposableEffect(Unit) {
         onDispose { currentCall?.cancel() }
     }
@@ -74,10 +90,11 @@ fun PexelsScreen(
         loading = true
         error = null
 
-        val call = if (query.isBlank()) {
+        val normalizedQuery = query.trim().lowercase()
+        val call = if (normalizedQuery.isBlank()) {
             PexelsService.api.getCurated(page = newPage, perPage = perPage)
         } else {
-            PexelsService.api.searchPhotos(query = query, page = newPage, perPage = perPage)
+            PexelsService.api.searchPhotos(query = normalizedQuery, page = newPage, perPage = perPage)
         }
 
         currentCall = call
@@ -88,6 +105,28 @@ fun PexelsScreen(
                     val list = response.body()?.photos.orEmpty()
                     photos = if (reset) list else photos + list
                     page = newPage
+
+                    // guardar en Room
+                    val entities = list.map {
+                        PhotoEntity(
+                            id = it.id,
+                            photographer = it.photographer,
+                            width = it.width,
+                            height = it.height,
+                            url = it.url,
+                            thumbnailUrl = it.src.medium ?: it.src.large ?: it.src.original,
+                            queryKey = normalizedQuery.ifBlank { "curated" },
+                            pageIndex = newPage,
+                            isFavorite = it.liked
+                        )
+                    }
+
+                    coroutineScope.launch {
+                        if (reset) photoDao.clearQuery(normalizedQuery)
+                        photoDao.insertAll(entities)
+                        queryDao.insertOrUpdate(RecentQueryEntity(normalizedQuery))
+                        recentQueries = queryDao.getRecentQueries()
+                    }
                 } else {
                     error = "HTTP ${response.code()}"
                 }
@@ -97,15 +136,46 @@ fun PexelsScreen(
                 if (call.isCanceled) return
                 loading = false
                 error = t.message ?: "Network error"
+
+                // Intentar cargar desde Room si no hay red
+                coroutineScope.launch {
+                    val cached = photoDao.getPhotosByQuery(normalizedQuery.ifBlank { "curated" })
+                    if (cached.isNotEmpty()) {
+                        photos = cached.map {
+                            PexelsPhoto(
+                                id = it.id,
+                                width = it.width,
+                                height = it.height,
+                                url = it.url,
+                                photographer = it.photographer,
+                                photographerUrl = "",
+                                photographerId = 0L,
+                                avgColor = null,
+                                src = PexelsSrc(
+                                    original = it.thumbnailUrl ?: it.url,
+                                    large2x = null,
+                                    large = null,
+                                    medium = it.thumbnailUrl,
+                                    small = null,
+                                    portrait = null,
+                                    landscape = null,
+                                    tiny = null
+                                ),
+                                liked = it.isFavorite,
+                                alt = ""
+                            )
+                        }
+                    }
+                }
             }
         })
     }
 
-    // Debounce para los 500 ms despues de escribir
+    // Debounce para la busqueda
     LaunchedEffect(query) {
         snapshotFlow { query.trim() }
             .debounce(500)
-            .collect { q ->
+            .collect {
                 page = 1
                 photos = emptyList()
                 fetch(newPage = 1, reset = true)
@@ -148,6 +218,24 @@ fun PexelsScreen(
                 placeholder = { Text("Buscar fotos...") }
             )
 
+            // mostrar las busquedas recientes
+            if (recentQueries.isNotEmpty()) {
+                androidx.compose.foundation.lazy.LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                ) {
+                    items(recentQueries.size) { index ->
+                        val q = recentQueries[index]
+                        androidx.compose.material3.AssistChip(
+                            onClick = { query = q.query },
+                            label = { Text(q.query) },
+                            modifier = Modifier.padding(end = 6.dp)
+                        )
+                    }
+                }
+            }
+
             if (error != null) {
                 Text(
                     text = "Error: $error",
@@ -163,13 +251,20 @@ fun PexelsScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(
-                    items = photos,
-                    key = { it.id }
-                ) { p ->
+                items(photos, key = { it.id }) { p ->
                     PhotoCard(
                         title = p.alt ?: p.photographer,
                         url = p.src.medium ?: p.src.large ?: p.src.original,
+                        isFavorite = p.liked,
+                        onToggleFavorite = {
+                            coroutineScope.launch {
+                                val newValue = !p.liked
+                                photoDao.updateFavorite(p.id, newValue)
+                                photos = photos.map {
+                                    if (it.id == p.id) it.copy(liked = newValue) else it
+                                }
+                            }
+                        },
                         modifier = Modifier.clickable {
                             navController.currentBackStackEntry
                                 ?.savedStateHandle
@@ -182,10 +277,10 @@ fun PexelsScreen(
                 if (loading) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         Box(
-                            modifier = Modifier
+                            Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
-                            contentAlignment = androidx.compose.ui.Alignment.Center
+                            contentAlignment = Alignment.Center
                         ) {
                             CircularProgressIndicator()
                         }
@@ -195,5 +290,3 @@ fun PexelsScreen(
         }
     }
 }
-
-

@@ -8,6 +8,7 @@ pluginManagement {
             }
         }
         mavenCentral()
+        maven("https://androidx.dev/storage/compose-compiler/repository/")
         gradlePluginPortal()
     }
 }
@@ -16,9 +17,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven("https://androidx.dev/storage/compose-compiler/repository/")
+        maven("https://androidx.dev/storage/archiva-repos/maven-public/")
     }
 }
 
-rootProject.name = "lab 6 platadormas - PC"
+rootProject.name = "lab 8 platadormas - PC"
 include(":app")
  

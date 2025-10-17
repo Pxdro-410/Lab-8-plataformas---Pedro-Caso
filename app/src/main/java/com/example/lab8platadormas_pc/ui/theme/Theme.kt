@@ -1,6 +1,5 @@
-package com.example.lab6platadormas_pc.ui.theme
+package com.example.lab8platadormas_pc.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme

@@ -1,4 +1,4 @@
-package com.example.lab6platadormas_pc.ui.theme
+package com.example.lab8platadormas_pc.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

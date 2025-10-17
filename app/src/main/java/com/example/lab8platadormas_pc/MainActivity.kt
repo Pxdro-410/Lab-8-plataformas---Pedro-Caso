@@ -1,10 +1,10 @@
 // ----------------------------------------------------------------------------
 // Pedro Caso
 // 241286
-// Lab 6 plataformas
+// Lab 8 plataformas
 // ----------------------------------------------------------------------------
 
-package com.example.lab6platadormas_pc
+package com.example.lab8platadormas_pc
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -19,7 +19,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.lab6platadormas_pc.ui.theme.Lab6PlatadormasPCTheme
+import com.example.lab8platadormas_pc.ui.theme.Lab6PlatadormasPCTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
